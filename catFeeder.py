@@ -1,6 +1,7 @@
 import RPi.GPIO as GPIO
 import board
-
+import time
+from datetime import datetime
 from adafruit_motorkit import MotorKit
 
 from utilities import Log
@@ -14,6 +15,8 @@ class CatFeeder:
     self.doorClosedLimitSwitchPin = 21
     GPIO.setup(self.doorOpenLimitSwitchPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(self.doorClosedLimitSwitchPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    self.catLastFed = None
+
   def doorMotor(self):
     return self.kit.motor1
 
@@ -25,6 +28,32 @@ class CatFeeder:
 
   def dispenseFoodMotor(self):
     return self.kit.motor4
+
+  def isCatEligibleToEat(self):
+    MORNING_START_TIME = "05:30:00"
+    MORNING_END_TIME = "11:30:00"
+    EVENING_START_TIME = "18:00:20"
+    EVENING_END_TIME = "23:59:59"
+    morningEarlyBound = datetime.strptime(MORNING_START_TIME, '%H:%M:%S').time()
+    morningLateBound = datetime.strptime(MORNING_END_TIME, '%H:%M:%S').time()
+    eveningEarlyBound = datetime.strptime(EVENING_START_TIME, '%H:%M:%S').time()
+    eveningLateBound = datetime.strptime(EVENING_END_TIME, '%H:%M:%S').time()
+
+    now = datetime.now().time()
+
+    # If the cat was fed in the last 6 hours, she doesn't need more
+    sixHoursAgo = now - timedelta(hours=6)
+    if self.catLastFed != None and self.catLastFed >= sixHoursAgo:
+      return False
+
+    Log.info("morning window? {value}".format(value=morningEarlyBound <= now and now <= morningLateBound))
+    Log.info("evening window? {value}".format(value=eveningEarlyBound <= now and now <= eveningLateBound))
+
+    if morningEarlyBound <= now and now <= morningLateBound:
+      return True
+    if eveningEarlyBound <= now and now <= eveningLateBound:
+      return True
+    return False
 
   def isDoorOpen(self):
     return GPIO.input(self.doorOpenLimitSwitchPin)
@@ -122,6 +151,8 @@ class CatFeeder:
     self.kit.motor4.throttle = 0
     Log.info("Food is dispensed!!")
 
+    # Save the last time the cat was fed
+    self.catLastFed = datetime.now()
 
   def killAllMotors(self):
     Log.info("Killing all motors")
