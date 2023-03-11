@@ -29,7 +29,24 @@ class CatFeeder:
   def dispenseFoodMotor(self):
     return self.kit.motor4
 
+  def isEnabled(self):
+    filename = "/home/pi/catFeeder/enabled.setting"
+    file = open(filename, 'r')
+    currentValue = file.read()
+    file.close()
+    return currentValue == 'True'
+
+  def toggleEnabled(self):
+    currentValue = self.isEnabled()
+    filename = "/home/pi/catFeeder/enabled.setting"
+    file = open(filename, 'w')
+    file.write(str(not currentValue))
+    file.close()
+
   def isCatEligibleToEat(self):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     MORNING_START_TIME = "05:30:00"
     MORNING_END_TIME = "11:30:00"
     EVENING_START_TIME = "18:00:20"
@@ -67,6 +84,9 @@ class CatFeeder:
     return True
 
   def openTrapDoor(self):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     timeToOpenStart = time.time()
     while not self.isDoorOpen():
       if self.kit.motor1.throttle != 1:
@@ -80,6 +100,9 @@ class CatFeeder:
     Log.info("TRAP DOOR OPEN - complete!")
 
   def closeTrapDoor(self):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     timeToCloseStart = time.time()
     while not self.isDoorClosed():
       if self.kit.motor1.throttle != -1:
@@ -103,12 +126,19 @@ class CatFeeder:
 
   # Open and close the trap door
   def clearDirtyBowl(self):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     self.openTrapDoor()
     Log.info("Trap door will close soon...")
     time.sleep(1)
     self.closeTrapDoor()
     Log.info("Dirty bowl handled!!")
 
+  def dropNewBowl(self):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     Log.info("Dispensing clean bowl!!")
     self.kit.motor2.throttle = 1.0
     time.sleep(1.7)
@@ -117,8 +147,15 @@ class CatFeeder:
 
   def clearDirtyBowlAndDropNewBowl(self):
     Log.info("Clearing old bowl")
+    modifiedEnabledState = False
+    # We don't want the motion sensors to go off while clearing the bowl
+    if onepawFeeder.isEnabled():
+      onepawFeeder.toggleEnabled()
+      modifiedEnabledState = True
     self.clearDirtyBowl()
     self.dropNewBowl()
+    if modifiedEnabledState:
+      onepawFeeder.toggleEnabled()
     Log.info("Old bowl cleared!")
 
   def pushBowls(self):
@@ -136,6 +173,9 @@ class CatFeeder:
     Log.info("Bowls pushed!!")
 
   def stirFood(self):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     Log.info("Stirring food!!")
     self.kit.motor3.throttle = 1
     time.sleep(30)
@@ -143,6 +183,9 @@ class CatFeeder:
     Log.info("Food is sufficiently mixed!!")
 
   def dispenseFood(self, duration):
+    if not self.isEnabled():
+      Log.info("WARNING SYSTEM OFF")
+      return
     Log.info("Dispensing food!!")
     self.kit.motor4.throttle = -1
     time.sleep(duration)
