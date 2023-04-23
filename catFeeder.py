@@ -5,6 +5,7 @@ from datetime import datetime
 from adafruit_motorkit import MotorKit
 
 from utilities import Log
+from texts import Texts
 
 class CatFeeder:
   def __init__(self):
@@ -16,6 +17,7 @@ class CatFeeder:
     GPIO.setup(self.doorOpenLimitSwitchPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(self.doorClosedLimitSwitchPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     self.catLastFed = None
+    self.texts = Texts()
 
   def doorMotor(self):
     return self.kit.motor1
@@ -120,6 +122,8 @@ class CatFeeder:
     if (doorMovementStartTime is not None) and ((time.time() - doorMovementStartTime) > 10):
       print(f"trap door broken? {time.time() - doorMovementStartTime}")
       Log.info(f"Trap door is stuck while {doorDirection}. The motor has been turned off")
+      # Text something went wrong
+      self.texts.sendText(f"❌ The trap door is stuck while {doorDirection}. The motor has been turned off\n\nTime: {datetime.now().strftime('%H:%M:%S')}")
       self.kit.motor1.throttle = 0
       return True
     return False
@@ -194,6 +198,7 @@ class CatFeeder:
     self.kit.motor4.throttle = 0
     Log.info("Food is dispensed!!")
 
+    self.texts.sendText(f"✅ Onepaw has been fed, check to see if enough food was dispensed.\n\nTime: {datetime.now().strftime('%H:%M:%S')}")
     # Save the last time the cat was fed
     self.catLastFed = datetime.now()
 
